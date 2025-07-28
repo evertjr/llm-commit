@@ -1,0 +1,110 @@
+{
+  "name": "llm-commit",
+  "displayName": "LLM Commit",
+  "publisher": "evertjunior",
+  "icon": "images/icon.png",
+  "description": "Generate Git commit messages using OpenAI-compatible APIs.",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/evertjr/llm-commit.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "SCM Providers"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "llm-commit.generate",
+        "title": "LLM Commit: Generate Message",
+        "icon": "$(sparkle)"
+      }
+    ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "llm-commit.generate",
+          "when": "scmProvider == git",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "LLM Commit",
+      "properties": {
+        "llm-commit.provider": {
+          "type": "string",
+          "enum": [
+            "custom",
+            "lm-studio",
+            "ollama",
+            "openai"
+          ],
+          "enumDescriptions": [
+            "Custom configuration using manual URL and API key",
+            "LM Studio (http://127.0.0.1:1234/v1/chat/completions)",
+            "Ollama with OpenAI compatibility (http://127.0.0.1:11434/v1/chat/completions)",
+            "OpenAI API (https://api.openai.com/v1/chat/completions)"
+          ],
+          "default": "lm-studio",
+          "description": "Select a provider preset or use custom configuration."
+        },
+        "llm-commit.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:1234/v1/chat/completions",
+          "description": "URL of the OpenAI-compatible API endpoint."
+        },
+        "llm-commit.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for the OpenAI-compatible API (if required)."
+        },
+        "llm-commit.model": {
+          "type": "string",
+          "default": "qwen2.5-coder-7b-instruct",
+          "description": "Model to use for generation."
+        },
+        "llm-commit.prompt": {
+          "type": "string",
+          "default": "Generate a concise, imperative git commit message written in the present tense for the following code changes:\n\n```diff\n{diff}\n```\n\nCommit message:",
+          "description": "Prompt template for the LLM. Use '{diff}' as placeholder for the git diff."
+        },
+        "llm-commit.maxDiffLength": {
+          "type": "number",
+          "default": 4000,
+          "description": "Maximum length of the git diff (in characters) to send to the LLM. Prevents overly long requests."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^8.28.0",
+    "@typescript-eslint/parser": "^8.28.0",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1",
+    "eslint": "^8.44.0",
+    "typescript": "^5.1.6",
+    "ts-loader": "^9.4.4",
+    "webpack": "^5.88.1",
+    "webpack-cli": "^5.1.4"
+  }
+}
