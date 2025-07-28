@@ -24,7 +24,7 @@ The "LLM Commit" extension generates Git commit messages using OpenAI-compatible
 
 ## Model choice
 
-- Any instruction following model can acomplish this task, I personally recommend qwen2.5-coder-7b-instruct at the moment since it's a small, fast model that understand code well.
+- Any instruction following model can accomplish this task, I personally recommend qwen2.5-coder-7b-instruct at the moment since it's a small, fast model that understands code well.
 
 ## Extension Settings
 
