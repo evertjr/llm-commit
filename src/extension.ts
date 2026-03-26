@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import { execFile } from "node:child_process";
+import { join } from "node:path";
 
 interface OpenAIMessage {
   role: "system" | "user" | "assistant";
@@ -119,9 +121,95 @@ async function getStagedDiff(gitAPI: any): Promise<string | null> {
   }
 }
 
-async function generateCommitMessage(diff: string): Promise<string | null> {
+function getFMCliBinaryPath(context: vscode.ExtensionContext): string {
+  return join(context.extensionPath, "bin", "fm-cli");
+}
+
+const FM_CLI_ERROR_MESSAGES: Record<string, string> = {
+  device_not_eligible:
+    "Apple Foundation Models requires Apple Silicon and macOS 26 or later.",
+  apple_intelligence_not_enabled:
+    "Please enable Apple Intelligence in System Settings to use this provider.",
+  model_not_ready:
+    "The on-device model is still downloading. Please try again later.",
+  unavailable:
+    "Apple Foundation Models is currently unavailable on this device.",
+  no_input: "No prompt was provided to the model.",
+};
+
+function runFMCli(
+  binaryPath: string,
+  args: string[],
+  stdin?: string
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const child = execFile(
+      binaryPath,
+      args,
+      { maxBuffer: 1024 * 1024, timeout: 60_000 },
+      (error, stdout, stderr) => {
+        if (error) {
+          const errorCode = stderr.trim().replace(/^error:/, "");
+          const message =
+            FM_CLI_ERROR_MESSAGES[errorCode] ||
+            `Apple Foundation Models error: ${stderr.trim() || error.message}`;
+          reject(new Error(message));
+          return;
+        }
+        resolve(stdout.trim());
+      }
+    );
+
+    if (stdin && child.stdin) {
+      child.stdin.write(stdin);
+      child.stdin.end();
+    }
+  });
+}
+
+async function generateWithApple(
+  context: vscode.ExtensionContext,
+  prompt: string
+): Promise<string | null> {
+  if (process.platform !== "darwin") {
+    vscode.window.showErrorMessage(
+      "Apple Foundation Models is only available on macOS."
+    );
+    return null;
+  }
+
+  const binaryPath = getFMCliBinaryPath(context);
+
+  try {
+    const instructions =
+      "You generate git commit messages. Respond with only the commit message, nothing else.";
+    const result = await runFMCli(
+      binaryPath,
+      ["--instructions", instructions],
+      prompt
+    );
+
+    if (!result) {
+      vscode.window.showWarningMessage(
+        "Apple Foundation Models returned an empty response."
+      );
+      return null;
+    }
+
+    return result;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unknown error occurred.";
+    vscode.window.showErrorMessage(message);
+    return null;
+  }
+}
+
+async function generateWithOpenAI(
+  diff: string,
+  provider: string
+): Promise<string | null> {
   const config = vscode.workspace.getConfiguration("llm-commit");
-  const provider = config.get<string>("provider") || "lm-studio";
   const providerConfig = getProviderConfig(provider);
   const promptTemplate = config.get<string>("prompt");
   const maxDiffLength = config.get<number>("maxDiffLength", 4000);
@@ -240,6 +328,36 @@ async function generateCommitMessage(diff: string): Promise<string | null> {
   }
 }
 
+async function generateCommitMessage(
+  diff: string,
+  context: vscode.ExtensionContext
+): Promise<string | null> {
+  const config = vscode.workspace.getConfiguration("llm-commit");
+  const provider = config.get<string>("provider") || "lm-studio";
+
+  if (provider === "apple") {
+    const promptTemplate = config.get<string>("prompt");
+    const maxDiffLength = config.get<number>("maxDiffLength", 4000);
+
+    if (!promptTemplate) {
+      vscode.window.showErrorMessage(
+        "LLM Commit configuration is missing the prompt template. Please check settings."
+      );
+      return null;
+    }
+
+    const truncatedDiff =
+      diff.length > maxDiffLength
+        ? `${diff.substring(0, maxDiffLength)}\n... (diff truncated)`
+        : diff;
+    const finalPrompt = promptTemplate.replace("{diff}", truncatedDiff);
+
+    return generateWithApple(context, finalPrompt);
+  }
+
+  return generateWithOpenAI(diff, provider);
+}
+
 export function activate(context: vscode.ExtensionContext) {
   const disposable = vscode.commands.registerCommand(
     "llm-commit.generate",
@@ -272,14 +390,11 @@ export function activate(context: vscode.ExtensionContext) {
           }
           progress.report({ increment: 30 });
 
-          const generatedMessage = await generateCommitMessage(diff);
+          const generatedMessage = await generateCommitMessage(diff, context);
           progress.report({ increment: 50 });
 
           if (generatedMessage && repo.inputBox) {
             repo.inputBox.value = generatedMessage;
-            vscode.window.showInformationMessage(
-              "LLM commit message generated."
-            );
             progress.report({ increment: 10 });
             return;
           }

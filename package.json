@@ -3,8 +3,8 @@
   "displayName": "LLM Commit",
   "publisher": "evertjunior",
   "icon": "images/icon.png",
-  "description": "Generate Git commit messages using OpenAI-compatible APIs.",
-  "version": "0.1.0",
+  "description": "Generate Git commit messages using local or cloud LLMs — supports Apple Foundation Models, LM Studio, Ollama, and OpenAI.",
+  "version": "0.2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/evertjr/llm-commit.git"
@@ -40,12 +40,14 @@
         "llm-commit.provider": {
           "type": "string",
           "enum": [
+            "apple",
             "custom",
             "lm-studio",
             "ollama",
             "openai"
           ],
           "enumDescriptions": [
+            "Apple Foundation Models — on-device, no setup required (macOS 26+, Apple Silicon)",
             "Custom configuration using manual URL and API key",
             "LM Studio (http://127.0.0.1:1234/v1/chat/completions)",
             "Ollama with OpenAI compatibility (http://127.0.0.1:11434/v1/chat/completions)",
@@ -71,7 +73,7 @@
         },
         "llm-commit.prompt": {
           "type": "string",
-          "default": "Generate a concise, imperative git commit message written in the present tense for the following code changes:\n\n```diff\n{diff}\n```\n\nCommit message:",
+          "default": "Generate a git commit message following the Conventional Commits specification for the changes below.\n\n**Format:** <type>(<optional scope>): <description>\n\n**Types:**\n- feat: A new feature\n- fix: A bug fix\n- docs: Documentation changes\n- style: Code style changes (formatting, whitespace, no logic change)\n- refactor: Code restructuring without changing behavior\n- perf: Performance improvements\n- test: Adding or updating tests\n- build: Build system or dependency changes\n- ci: CI/CD configuration changes\n- chore: Routine tasks, maintenance\n\n**Rules:**\n- Use imperative, present tense (e.g., \"add\" not \"added\")\n- Keep the description under 50 characters\n- Lowercase the description (no capital start, no period)\n- Add scope in parentheses if applicable (e.g., `feat(auth):`)\n- For breaking changes, add `!` before colon (e.g., `feat!:`)\n\n**Diff:**\n```diff\n{diff}\n```\n\n**Commit message:**",
           "description": "Prompt template for the LLM. Use '{diff}' as placeholder for the git diff."
         },
         "llm-commit.maxDiffLength": {
@@ -83,7 +85,8 @@
     }
   },
   "scripts": {
-    "vscode:prepublish": "npm run package",
+    "vscode:prepublish": "npm run build:swift && npm run package",
+    "build:swift": "cd swift/fm-cli && swift build -c release && mkdir -p ../../bin && cp $(swift build -c release --show-bin-path)/fm-cli ../../bin/fm-cli",
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",

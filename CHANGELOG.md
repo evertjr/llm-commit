@@ -4,6 +4,15 @@ All notable changes to the "llm-commit" extension will be documented in this fil
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.2.0] - 2026-03-26
+
+### Added
+
+- Apple Foundation Models provider — on-device, private, zero configuration (macOS 26+, Apple Silicon)
+- Bundled Swift CLI (`fm-cli`) that bridges Apple's FoundationModels framework
+- Clear error messages for Apple Intelligence availability states (device not eligible, not enabled, model downloading)
+- Platform guard for non-macOS systems selecting the Apple provider
+
 ## [0.1.0] - 2025-01-27
 
 ### Added
